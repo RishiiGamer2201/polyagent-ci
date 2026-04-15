@@ -354,7 +354,7 @@ def _print_review(result: dict) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="PolyAgent CI — Review Agent")
-    parser.add_argument("--task-id", required=True, help="Task ID to review")
+    parser.add_argument("--task-id", default="", help="Task ID to review")
     parser.add_argument("--branch", default="", help="Branch name (default: agent/<task_id>)")
     parser.add_argument("--agent", default="", help="Agent name")
     parser.add_argument("--provider", default="gemini", choices=["gemini", "groq"])
@@ -365,11 +365,13 @@ def main():
     if args.review_all:
         tasks = ["backend", "frontend", "crdt", "qa"]
         for tid in tasks:
-            branch = args.branch if args.branch else f"agent/{tid}"
+            branch = f"agent/{tid}"
             review_task(tid, branch, provider=args.provider, demo_mode=args.demo_mode)
-    else:
+    elif args.task_id:
         branch = args.branch if args.branch else f"agent/{args.task_id}"
         review_task(args.task_id, branch, args.agent, args.provider, args.demo_mode)
+    else:
+        parser.error("Provide --task-id <id> or --review-all")
 
 
 if __name__ == "__main__":

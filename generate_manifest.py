@@ -196,24 +196,26 @@ def validate_manifest(tasks: list[dict]) -> list[str]:
 # ─── AI Providers ─────────────────────────────────────────
 
 def generate_with_gemini(prompt: str) -> str:
-    """Generate manifest using Google Gemini API."""
-    import google.generativeai as genai
+    """Generate manifest using Google Gemini API (new google.genai SDK)."""
+    try:
+        from google import genai
+        from google.genai import types as gtypes
+    except ImportError:
+        raise ImportError("Run: pip install google-genai")
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set in environment")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=gtypes.GenerateContentConfig(
             temperature=0.1,
             response_mime_type="application/json",
         ),
     )
-
     return response.text
 
 
@@ -284,20 +286,35 @@ def generate_manifest(provider: str = "gemini", offline: bool = False) -> list[d
         if not provider_fn:
             raise ValueError(f"Unknown provider '{provider}'. Choose from: {list(PROVIDERS.keys())}")
 
-        raw = provider_fn(PROJECT_DESCRIPTION)
-
-        # Parse JSON (handle possible wrapper object)
+        raw = None
         try:
-            data = json.loads(raw)
-            if isinstance(data, dict):
-                # Some models wrap in {"tasks": [...]}
-                tasks = data.get("tasks", data.get("manifest", []))
+            raw = provider_fn(PROJECT_DESCRIPTION)
+        except Exception as e:
+            err_str = str(e).lower()
+            if any(k in err_str for k in ["quota", "429", "exhausted", "resource_exhausted"]):
+                print(f"  [WARN] {provider} quota exceeded. Auto-falling back to groq...")
+                try:
+                    raw = generate_with_groq(PROJECT_DESCRIPTION)
+                    print("  [OK] Groq fallback succeeded.")
+                except Exception as e2:
+                    print(f"  [WARN] Groq also failed: {e2}. Using offline manifest.")
             else:
-                tasks = data
-        except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse AI response as JSON: {e}")
-            print(f"   Raw response: {raw[:500]}")
-            print("   Falling back to offline manifest...")
+                print(f"  [ERROR] AI call failed: {e}")
+                print("  Falling back to offline manifest...")
+
+        if raw is not None:
+            try:
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    tasks = data.get("tasks", data.get("manifest", []))
+                else:
+                    tasks = data
+            except json.JSONDecodeError as e:
+                print(f"  [ERROR] Failed to parse AI response: {e}")
+                print("  Falling back to offline manifest...")
+                raw = None
+
+        if raw is None:
             tasks = FALLBACK_MANIFEST
 
     # Validate
