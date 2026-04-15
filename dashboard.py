@@ -318,10 +318,10 @@ def make_agent_panel(data: DashboardData) -> Panel:
         box=box.SIMPLE_HEAVY, expand=True,
         title="Agent Status", title_style="bold white",
     )
-    table.add_column("Agent", style="bold", width=18)
-    table.add_column("Directory", style="dim", width=16)
-    table.add_column("State", justify="center", width=20)
-    table.add_column("Epistemic", justify="center", width=16)
+    table.add_column("Agent",    style="bold",    no_wrap=True)
+    table.add_column("Dir",      style="dim",     no_wrap=True, max_width=12)
+    table.add_column("State",    justify="center", no_wrap=True)
+    table.add_column("Epistemic",justify="center", no_wrap=True)
 
     for task_id in ["frontend", "backend", "crdt", "qa"]:
         info = AGENT_INFO.get(task_id, {"name": task_id, "icon": "❓", "dir": "?"})
@@ -535,16 +535,20 @@ def make_layout(data: DashboardData) -> Layout:
     layout["reviews"].update(make_review_panel(data))
 
     # Footer
+    elapsed = int(time.time() - _start_time)
+    seq_estimate = 240  # 4 hrs sequential
     footer_text = Text()
     footer_text.append("  [q]", style="bold yellow")
     footer_text.append(" quit  ", style="dim")
-    footer_text.append("[r]", style="bold yellow")
-    footer_text.append(" refresh  ", style="dim")
     footer_text.append("[d]", style="bold yellow")
-    footer_text.append(" detail  ", style="dim")
+    footer_text.append(" demo  ", style="dim")
     footer_text.append("│  ", style="dim")
     progress = data.get_progress()
-    footer_text.append(f"Pipeline: {progress:.0f}% complete", style="bold green" if progress >= 100 else "bold cyan")
+    footer_text.append(f"Pipeline: {progress:.0f}% ", style="bold green" if progress >= 100 else "bold cyan")
+    footer_text.append("│  ", style="dim")
+    footer_text.append(f"Parallel: {elapsed//60}m{elapsed%60:02d}s", style="bold green")
+    footer_text.append("  vs  ", style="dim")
+    footer_text.append(f"Sequential: ~{seq_estimate//60}m  ", style="dim red")
     layout["footer"].update(Panel(footer_text, style="dim"))
 
     return layout
@@ -552,15 +556,24 @@ def make_layout(data: DashboardData) -> Layout:
 
 # ─── Main ─────────────────────────────────────────────────
 
+_start_time = time.time()
+
 def run_dashboard(demo_mode: bool = False, timeout: int = 0) -> None:
     """Run the live dashboard."""
+    global _start_time
     console = Console()
+
+    # Minimum width check
+    if console.width < 100:
+        console.print("[bold yellow]Warning:[/bold yellow] Terminal width is narrow. Run in a wider window for best results (100+ cols recommended).")
+        time.sleep(1)
 
     if demo_mode:
         demo = DemoDataGenerator()
         data = demo.data
     else:
         data = DashboardData()
+        data.refresh()  # Load existing logs immediately
 
     start_time = time.time()
 
