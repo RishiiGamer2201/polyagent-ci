@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "workspace": {
+    "name": "PolyAgent CI",
+    "description": "Multi-agent orchestration — 4 specialized AI agents building a real-time collaborative Markdown editor simultaneously on isolated git branches.",
+    "root": "."
+  },
+  "agents": [
+    {
+      "id": "frontend-agent",
+      "name": "Frontend Agent",
+      "branch": "agent/frontend",
+      "worktree": "worktrees/agent_frontend",
+      "prompt": "agents/frontend-agent/prompt.md",
+      "owns": "app/frontend/",
+      "sentinel": ".agent_complete",
+      "depends_on": []
+    },
+    {
+      "id": "backend-agent",
+      "name": "Backend Agent",
+      "branch": "agent/backend",
+      "worktree": "worktrees/agent_backend",
+      "prompt": "agents/backend-agent/prompt.md",
+      "owns": "app/backend/",
+      "sentinel": ".agent_complete",
+      "depends_on": []
+    },
+    {
+      "id": "crdt-agent",
+      "name": "CRDT Agent",
+      "branch": "agent/crdt",
+      "worktree": "worktrees/agent_crdt",
+      "prompt": "agents/crdt-agent/prompt.md",
+      "owns": "app/crdt/",
+      "sentinel": ".agent_complete",
+      "depends_on": ["backend-agent"]
+    },
+    {
+      "id": "qa-agent",
+      "name": "QA Agent",
+      "branch": "agent/qa",
+      "worktree": "worktrees/agent_qa",
+      "prompt": "agents/qa-agent/prompt.md",
+      "owns": "app/tests/",
+      "sentinel": ".agent_complete",
+      "depends_on": ["frontend-agent", "backend-agent", "crdt-agent"]
+    }
+  ],
+  "shared": {
+    "contracts_dir": "shared/contracts",
+    "team_context": "shared/team_context.md",
+    "semantic_versions": "shared/semantic_versions.json"
+  },
+  "orchestrator": {
+    "poll_interval_seconds": 5,
+    "log_dir": "logs",
+    "manifest_dir": "manifests"
+  }
+}
