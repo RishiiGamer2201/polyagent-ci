@@ -1,0 +1,513 @@
+openapi: "3.1.0"
+info:
+  title: PolyAgent Collaborative Markdown Editor API
+  description: |
+    REST + WebSocket API for the real-time collaborative Markdown editor.
+    This is the single source of truth for all HTTP endpoints.
+    Any change to this file must go through the Contract Change Protocol.
+  version: "1.0.0"
+  contact:
+    name: PolyAgent CI Orchestrator
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    # ── Auth ──────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        password:
+          type: string
+          minLength: 8
+      example:
+        username: "editor_user"
+        password: "securepass123"
+
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+      example:
+        access_token: "eyJhbGciOiJIUzI1NiIs..."
+        token_type: "bearer"
+        expires_in: 3600
+        user_id: "550e8400-e29b-41d4-a716-446655440000"
+        username: "editor_user"
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    # ── Documents ─────────────────────────────────────
+    Document:
+      type: object
+      required: [id, title, owner_id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        content_preview:
+          type: string
+          description: First 200 chars of markdown content
+          maxLength: 200
+        owner_id:
+          type: string
+          format: uuid
+        collaborator_count:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      example:
+        id: "550e8400-e29b-41d4-a716-446655440000"
+        title: "Project Notes"
+        content_preview: "# Project Notes\n\nThis document..."
+        owner_id: "660e8400-e29b-41d4-a716-446655440000"
+        collaborator_count: 3
+        created_at: "2025-01-15T10:30:00Z"
+        updated_at: "2025-01-15T14:22:00Z"
+
+    CreateDocumentRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        initial_content:
+          type: string
+          description: Optional initial markdown content
+          default: ""
+
+    UpdateDocumentRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+
+    # ── Collaborators ─────────────────────────────────
+    Collaborator:
+      type: object
+      required: [user_id, username, role, added_at]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum: [owner, editor, viewer]
+        added_at:
+          type: string
+          format: date-time
+
+    AddCollaboratorRequest:
+      type: object
+      required: [username, role]
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum: [editor, viewer]
+
+    # ── Common ────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+        error_code:
+          type: string
+          enum:
+            - AUTH_INVALID_CREDENTIALS
+            - AUTH_TOKEN_EXPIRED
+            - AUTH_UNAUTHORIZED
+            - DOC_NOT_FOUND
+            - DOC_ACCESS_DENIED
+            - VALIDATION_ERROR
+            - INTERNAL_ERROR
+
+    HealthResponse:
+      type: object
+      required: [status, version, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          properties:
+            redis:
+              type: string
+              enum: [connected, disconnected]
+            database:
+              type: string
+              enum: [connected, disconnected]
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ── Health ──────────────────────────────────────────
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      security: []
+      tags: [System]
+      responses:
+        "200":
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Auth ────────────────────────────────────────────
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a new user
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "409":
+          description: Username or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate and get JWT token
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Documents ───────────────────────────────────────
+  /documents:
+    get:
+      operationId: listDocuments
+      summary: List all documents accessible to the user
+      tags: [Documents]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Document"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: createDocument
+      summary: Create a new document
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentRequest"
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{document_id}:
+    parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getDocument
+      summary: Get a specific document
+      tags: [Documents]
+      responses:
+        "200":
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateDocument
+      summary: Update document metadata
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDocumentRequest"
+      responses:
+        "200":
+          description: Document updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteDocument
+      summary: Delete a document
+      tags: [Documents]
+      responses:
+        "204":
+          description: Document deleted
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{document_id}/collaborators:
+    parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: listCollaborators
+      summary: List document collaborators
+      tags: [Collaborators]
+      responses:
+        "200":
+          description: List of collaborators
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collaborators:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collaborator"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: addCollaborator
+      summary: Add a collaborator to a document
+      tags: [Collaborators]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCollaboratorRequest"
+      responses:
+        "201":
+          description: Collaborator added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collaborator"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: User is already a collaborator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── WebSocket ───────────────────────────────────────
+  /ws/{document_id}:
+    parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: connectWebSocket
+      summary: WebSocket connection for real-time collaboration
+      description: |
+        Upgrade to WebSocket for real-time document collaboration.
+        
+        Authentication: Pass JWT as query parameter `?token=<jwt>`.
+        
+        Protocol: Yjs WebSocket sync protocol (binary frames).
+        See websocket_messages.ts for message type definitions.
+        See yjs_document_schema.ts for CRDT document structure.
+        
+        Connection lifecycle:
+        1. Client connects with JWT token
+        2. Server sends SyncStep1 (full document state)
+        3. Client responds with SyncStep2 (missing updates)
+        4. Bidirectional DocumentUpdate messages for ongoing edits
+        5. AwarenessUpdate messages for cursor/presence
+      tags: [WebSocket]
+      security: []
+      responses:
+        "101":
+          description: WebSocket upgrade successful
+        "401":
+          description: Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

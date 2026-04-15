@@ -1,0 +1,9 @@
+# PolyAgent CI Dependencies
+google-generativeai>=0.8.0
+groq>=0.9.0
+mistralai>=1.0.0
+rich>=13.7.0
+jsonschema>=4.21.0
+pyyaml>=6.0.1
+pytest>=8.0.0
+python-dotenv>=1.0.0

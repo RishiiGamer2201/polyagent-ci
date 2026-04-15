@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Semantic versions for each agent's component. Agents bump their version on completion.",
+  "versions": {
+    "frontend": {
+      "version": "0.0.0",
+      "status": "not_started",
+      "last_updated": null,
+      "updated_by": null,
+      "exports": [],
+      "consumes": []
+    },
+    "backend": {
+      "version": "0.0.0",
+      "status": "not_started",
+      "last_updated": null,
+      "updated_by": null,
+      "exports": [],
+      "consumes": []
+    },
+    "crdt": {
+      "version": "0.0.0",
+      "status": "not_started",
+      "last_updated": null,
+      "updated_by": null,
+      "exports": [],
+      "consumes": []
+    },
+    "tests": {
+      "version": "0.0.0",
+      "status": "not_started",
+      "last_updated": null,
+      "updated_by": null,
+      "exports": [],
+      "consumes": []
+    }
+  },
+  "compatibility_matrix": {
+    "frontend": {
+      "requires": {
+        "backend": ">=1.0.0",
+        "crdt": ">=1.0.0"
+      }
+    },
+    "crdt": {
+      "requires": {
+        "backend": ">=1.0.0"
+      }
+    },
+    "tests": {
+      "requires": {
+        "frontend": ">=1.0.0",
+        "backend": ">=1.0.0",
+        "crdt": ">=1.0.0"
+      }
+    }
+  }
+}

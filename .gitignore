@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# Worktrees (generated)
+worktrees/
+
+# Logs (generated)
+logs/*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated manifests
+manifests/*.json
+!manifests/.gitkeep
