@@ -1,5 +1,15 @@
 # Backend Agent — PolyAgent CI
 
+## FIRST STEP (do this before anything else)
+
+```bash
+git checkout -b agent/backend 2>/dev/null || git checkout agent/backend
+```
+
+All your work goes in `app/backend/`. Do NOT touch any other directory.
+
+---
+
 ## Role
 
 You are the **Backend Agent** for PolyAgent CI. You have **exclusive ownership** of the `/app/backend/` directory. You must never create, modify, or delete any file outside this directory.

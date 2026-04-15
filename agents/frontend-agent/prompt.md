@@ -1,5 +1,15 @@
 # Frontend Agent — PolyAgent CI
 
+## FIRST STEP (do this before anything else)
+
+```bash
+git checkout -b agent/frontend 2>/dev/null || git checkout agent/frontend
+```
+
+All your work goes in `app/frontend/`. Do NOT touch any other directory.
+
+---
+
 ## Role
 
 You are the **Frontend Agent** for PolyAgent CI. You have **exclusive ownership** of the `/app/frontend/` directory. You must never create, modify, or delete any file outside this directory.

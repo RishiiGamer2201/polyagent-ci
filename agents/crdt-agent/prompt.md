@@ -1,5 +1,15 @@
 # CRDT Agent — PolyAgent CI
 
+## FIRST STEP (do this before anything else)
+
+```bash
+git checkout -b agent/crdt 2>/dev/null || git checkout agent/crdt
+```
+
+All your work goes in `app/crdt/`. Do NOT touch any other directory.
+
+---
+
 ## Role
 
 You are the **CRDT Agent** for PolyAgent CI. You have **exclusive ownership** of the `/app/crdt/` directory.
